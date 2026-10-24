@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
-
+const bcrypt = require("bcryptjs");
 const app = express();
 
 app.use(cors());
@@ -95,35 +95,26 @@ app.post("/register", async (req, res) => {
             });
         }
 
-
+        const hashedPassword = await bcrypt.hash(password, 10);
         // Create user
         const result = await pool.query(`
-            
             INSERT INTO users (username,email, password)
             VALUES ($1, $2, $3)
             RETURNING id, username
-            
-            `,[username,email, password]
+            `,[username,email, hashedPassword]
         );
 
 
         return res.status(201).json({
-
             success: true,
-
             message: "User registered successfully",
-
             user: result.rows[0]
         });
 
     } catch (error) {
-
         console.error("Registration error:", error);
-
         return res.status(500).json({
-
             success: false,
-
             message: "Something went wrong"
         });
     }
@@ -174,9 +165,9 @@ app.post("/login", async (req, res) => {
 
         const user = result.rows[0];
 
-
+        const passwordMatch = await bcrypt.compare(password, user.password);
         // Check password
-        if (password !== user.password) {
+        if (!passwordMatch) {
 
             return res.status(401).json({
 
