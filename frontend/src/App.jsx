@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import Login from "./login";
 import Register from "./register";
+import Dashboard from "./Dashboard"
 
 import "./App.css";
 
@@ -28,7 +29,7 @@ function App() {
   // If logged in → show real-workspace
   if (isLoggedIn) {
     return (
-      <Url
+      <Dashboard
         onLogout={() => setIsLoggedIn(false)}
       />
     );

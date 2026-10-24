@@ -147,7 +147,7 @@ function Register({ onRegister }) {
           <button
             type="submit"
             disabled={loading}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {loading ? "Creating account..." : "Create account"}
             {!loading && (
@@ -164,13 +164,13 @@ function Register({ onRegister }) {
           <button
             type="button"
             onClick={onRegister}
-            className="font-semibold text-indigo-400 transition hover:text-indigo-300"
+            className="font-semibold text-indigo-400 transition hover:text-indigo-300 cursor-pointer"
           >
             Sign in
           </button>
         </p>
 
-        <p className="mt-7 text-center text-xs text-slate-600">
+        <p className="mt-7 text-center text-xs text-slate-600 ">
           Your workspace. Your team. One place.
         </p>
       </div>

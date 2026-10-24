@@ -119,7 +119,7 @@ function Login({ onLogin, onShowRegister }) {
           <button
             type="submit"
             disabled={loading}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {loading ? "Signing in..." : "Sign in to your account"}
             {!loading && (
@@ -136,7 +136,7 @@ function Login({ onLogin, onShowRegister }) {
           <button
             type="button"
             onClick={onShowRegister}
-            className="font-semibold text-indigo-400 transition hover:text-indigo-300"
+            className="font-semibold text-indigo-400 transition hover:text-indigo-300 cursor-pointer"
           >
             Create an account
           </button>
