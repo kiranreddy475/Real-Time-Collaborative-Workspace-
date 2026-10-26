@@ -1,18 +1,19 @@
+"use client";
+
 import { useState } from "react";
 
 import Login from "./login";
 import Register from "./register";
 import Dashboard from "./Dashboard"
 
-import "./App.css";
-
 function App() {
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem("token")));
   const [showRegister, setShowRegister] = useState(false);
-  const [userName,setUsername]=useState("");
   // Login successful
-  function handleLogin() {
+  function handleLogin(session) {
+    if (session?.token) localStorage.setItem("token", session.token);
+    if (session?.user) localStorage.setItem("user", JSON.stringify(session.user));
     setIsLoggedIn(true);
   }
 
@@ -22,15 +23,18 @@ function App() {
   }
 
   // Registration successful
-  function handleRegister() {
+  function handleRegister(session) {
+    if (session?.token) localStorage.setItem("token", session.token);
+    if (session?.user) localStorage.setItem("user", JSON.stringify(session.user));
     setShowRegister(false);
+    if (session?.token) setIsLoggedIn(true);
   }
 
   // If logged in → show real-workspace
   if (isLoggedIn) {
     return (
       <Dashboard
-        onLogout={() => setIsLoggedIn(false)}
+        onLogout={() => { localStorage.removeItem("token"); localStorage.removeItem("user"); setIsLoggedIn(false); }}
       />
     );
   }

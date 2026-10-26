@@ -17,7 +17,7 @@ function Register({ onRegister }) {
       setLoading(true);
 
       const response = await axios.post(
-        "http://localhost:3000/register",
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/register`,
         {
           username,
           email,
@@ -26,7 +26,7 @@ function Register({ onRegister }) {
       );
 
       if (response.data.success) {
-        onRegister();
+        onRegister(response.data);
       } else {
         setError(
           response.data.message || "Registration failed"

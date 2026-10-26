@@ -1,569 +1,129 @@
+"use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Home,
-  Search,
-  Inbox,
-  Plus,
-  ChevronDown,
-  FileText,
-  Users,
-  MessageSquare,
-  Clock3,
-  MoreHorizontal,
-  ArrowUpRight,
-  Settings,
-  Sparkles,
-  Command,
-} from "lucide-react";
-
-const initialPages = [
-  {
-    id: 1,
-    title: "Project Plan",
-    workspace: "Design Team",
-    edited: "2 minutes ago",
-    icon: "📋",
-    cover: "bg-violet-100",
-    accent: "text-violet-600 bg-violet-50",
-    members: ["SC", "DP", "LW"],
-  },
-  {
-    id: 2,
-    title: "Product Roadmap",
-    workspace: "Product",
-    edited: "1 hour ago",
-    icon: "🚀",
-    cover: "bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-400",
-    accent: "text-blue-600 bg-blue-50",
-    members: ["DP", "SC"],
-  },
-  {
-    id: 3,
-    title: "Meeting Notes",
-    workspace: "Personal",
-    edited: "3 hours ago",
-    icon: "📝",
-    cover: "bg-gradient-to-br from-orange-100 to-rose-200",
-    accent: "text-orange-600 bg-orange-50",
-    members: ["LW", "JM", "SC"],
-  },
-  {
-    id: 4,
-    title: "Marketing Ideas",
-    workspace: "Marketing",
-    edited: "5 hours ago",
-    icon: "💡",
-    cover: "bg-gradient-to-br from-emerald-100 to-teal-200",
-    accent: "text-emerald-600 bg-emerald-50",
-    members: ["JM", "DP"],
-  },
+import { useEffect, useMemo, useState } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Collaboration from '@tiptap/extension-collaboration';
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import { Activity, Check, ChevronDown, CircleHelp, Clock3, Command, FilePlus2, FileText, History, MessageCircle, MoreHorizontal, Plus, Search, Settings2, Share2, Shield, Sparkles, Wifi, WifiOff, X } from 'lucide-react';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const demoPages = [
+  { id: 'welcome', title: 'Welcome to CollabSpace', workspace: 'Design Studio', updatedAt: 'Just now', content: '<h1>Welcome to your shared canvas</h1><p>This is a live document. Open another browser window and sign in as another teammate to see edits and cursors appear in real time.</p><h2>What you can do</h2><ul><li>Edit this document with your team</li><li>Leave a comment on the page</li><li>Review saved snapshots</li></ul><p>Every keystroke is synced through Yjs, a conflict-free replicated data type. Concurrent changes merge automatically, even if someone briefly loses their connection.</p>' },
+  { id: 'roadmap', title: 'Product roadmap', workspace: 'Design Studio', updatedAt: '1 hour ago', content: '<h1>Product roadmap</h1><p>Plan, discuss, and ship together.</p><h2>Now</h2><ul><li>Real-time collaboration</li><li>Comment threads</li></ul>' },
+  { id: 'notes', title: 'Team notes', workspace: 'Design Studio', updatedAt: 'Yesterday', content: '<h1>Team notes</h1><p>Capture decisions and keep everyone in the loop.</p>' },
 ];
+const palette = ['#7357e8', '#ed7a53', '#2c9e86', '#db6294', '#3975cc'];
+const initial = (name='Guest') => name.split(/\s+/).map(x => x[0]).join('').slice(0,2).toUpperCase();
 
-const workspaces = [
-  { name: "Personal", icon: "◈", color: "bg-violet-100 text-violet-600" },
-  { name: "Design Team", icon: "✳", color: "bg-blue-100 text-blue-600" },
-  { name: "Product", icon: "◉", color: "bg-orange-100 text-orange-600" },
-  { name: "Marketing", icon: "◇", color: "bg-emerald-100 text-emerald-600" },
-];
-
-const people = [
-  { name: "Sarah Kim", initials: "SK", color: "bg-pink-100 text-pink-700", task: "Editing Project Plan" },
-  { name: "David Park", initials: "DP", color: "bg-blue-100 text-blue-700", task: "Editing Product Roadmap" },
-  { name: "Lisa Wong", initials: "LW", color: "bg-emerald-100 text-emerald-700", task: "Viewing Meeting Notes" },
-];
-
-const stats = [
-  { label: "Total pages", value: "12", note: "Across your workspaces", icon: FileText, color: "bg-violet-100 text-violet-600" },
-  { label: "Collaborators", value: "5", note: "People in your workspace", icon: Users, color: "bg-emerald-100 text-emerald-600" },
-  { label: "Comments", value: "8", note: "Across recent documents", icon: MessageSquare, color: "bg-orange-100 text-orange-600" },
-  { label: "Recent edits", value: "3", note: "In the last hour", icon: Clock3, color: "bg-pink-100 text-pink-600" },
-];
-
-function Dashboard() {
-  // Read the user saved by your login flow.
-  // Expected shape: { name, username, email } in localStorage under "user".
-  const [loggedInUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  });
-
-  const userName =
-    loggedInUser?.name ||
-    loggedInUser?.username ||
-    loggedInUser?.fullName ||
-    "User";
-  const userEmail = loggedInUser?.email || "";
-  const userInitials = userName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "U";
-
-  const [currentTime, setCurrentTime] = useState(() => new Date());
-
-  // Update the greeting while the dashboard remains open.
+function CollaborativeEditor({ page, user, token, onPresence, editable }) {
+  const [connection, setConnection] = useState('connecting');
+  const [doc] = useState(() => new Y.Doc());
+  const [provider, setProvider] = useState(null);
   useEffect(() => {
-    const timerId = window.setInterval(() => setCurrentTime(new Date()), 60_000);
-    return () => window.clearInterval(timerId);
-  }, []);
+    const connection = new WebsocketProvider(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1234', page.id, doc, { connect: true, params: { token: token || '' } });
+    // The provider must be constructed after mount so it can access the browser WebSocket API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProvider(connection);
+    return () => { connection.destroy(); doc.destroy(); };
+  }, [page.id, token, doc]);
+  
+const editor = useEditor(
+  {
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({ undoRedo: false }),
+      Collaboration.configure({ document: doc }),
+      ...(provider
+        ? [
+            CollaborationCaret.configure({
+              provider,
+              user: {
+                name: user?.username || user?.name || 'Guest',
+                color: palette[(user?.id || 0) % palette.length],
+              },
+            }),
+          ]
+        : []),
+    ],
+    editable,
+    editorProps: {
+      attributes: {
+        class: 'editor-prose',
+        'aria-label': 'Collaborative document editor',
+        spellcheck: 'false',
+      },
+    },
+  },
+  [page.id, provider, editable]
+);
 
-  const hour = currentTime.getHours();
-  const greeting =
-    hour >= 4 && hour < 12
-      ? "Good morning"
-      : hour >= 12 && hour < 16
-        ? "Good afternoon"
-        : hour >= 16 && hour < 22
-          ? "Good evening"
-          : "Night alert";
+  useEffect(() => {
+    if (!provider) return;
+    const connect = value => setConnection(value.status);
+    const awareness = () => onPresence(Array.from(provider.awareness.getStates().values()).map(state => state.user).filter(Boolean));
+    provider.on('status', connect); provider.awareness.on('change', awareness);
+    return () => { provider.off('status', connect); provider.awareness.off('change', awareness); };
+  }, [provider, doc, onPresence]);
+  
+useEffect(() => {
+  if (!editor || !provider || !editable) return;
 
-  const [pages, setPages] = useState(initialPages);
-  const [query, setQuery] = useState("");
-  const [activeNav, setActiveNav] = useState("Home");
-  const [activeWorkspace, setActiveWorkspace] = useState("All workspaces");
-  const [selectedPage, setSelectedPage] = useState(null);
-  const [showInbox, setShowInbox] = useState(false);
+  const fragment = doc.getXmlFragment('prosemirror');
 
-  const filteredPages = useMemo(() => {
-    return pages.filter((page) => {
-      const matchesQuery =
-        `${page.title} ${page.workspace}`
-          .toLowerCase()
-          .includes(query.toLowerCase());
+  // Don't initialize content until the editor instance exists.
+  if (editor.isDestroyed) return;
 
-      const matchesWorkspace =
-        activeWorkspace === "All workspaces" ||
-        page.workspace === activeWorkspace;
-
-      const matchesShared =
-        activeNav !== "Shared with me" ||
-        page.workspace !== "Personal";
-
-      return matchesQuery && matchesWorkspace && matchesShared;
-    });
-  }, [pages, query, activeWorkspace, activeNav]);
-
-  function createPage() {
-    const page = {
-      id: Date.now(),
-      title: "Untitled",
-      workspace: activeWorkspace === "All workspaces" ? "Personal" : activeWorkspace,
-      edited: "Just now",
-      icon: "📄",
-      cover: "bg-violet-100",
-      accent: "text-violet-600 bg-violet-50",
-      members: ["AC"],
-    };
-
-    setPages((current) => [page, ...current]);
-    setSelectedPage(page);
-  }
-
-  function renamePage(id, title) {
-    setPages((current) =>
-      current.map((page) => page.id === id ? { ...page, title } : page)
+  if (fragment.length === 0) {
+    editor.commands.setContent(
+      page.content || '<p>Start writing together…</p>'
     );
   }
+}, [editor, provider, editable, doc, page.id, page.content]);
 
-  const navItem = (label, Icon, onClick, active = false, suffix = null) => (
-    <button
-      key={label}
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-        active
-          ? "bg-violet-50 font-semibold text-violet-700"
-          : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-      }`}
-    >
-      <Icon size={18} />
-      <span className="flex-1 text-left">{label}</span>
-      {suffix}
-    </button>
-  );
-
-  return (
-    <div className="min-h-screen bg-[#f7f8fc] text-slate-800 md:grid md:grid-cols-[245px_minmax(0,1fr)]">
-      {/* Sidebar */}
-      <aside className="flex min-h-screen flex-col border-r border-slate-200/80 bg-white px-4 py-6">
-        <button
-          onClick={() => {
-            setActiveNav("Home");
-            setSelectedPage(null);
-          }}
-          className="mb-9 flex items-center gap-3 px-2 text-left"
-        >
-          <span className="grid size-10 place-items-center rounded-xl bg-linear-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-200">
-            <Command size={21} />
-          </span>
-          <span className="text-lg font-extrabold tracking-tight">CollabSpace</span>
-        </button>
-
-        <p className="mb-3 px-3 text-[10px] font-bold tracking-[0.16em] text-slate-400">
-          WORKSPACE
-        </p>
-
-        <nav className="space-y-1">
-          {navItem("Home", Home, () => {
-            setActiveNav("Home");
-            setSelectedPage(null);
-          }, activeNav === "Home")}
-
-          {navItem("Search", Search, () => {
-            setActiveNav("Search");
-            document.querySelector('input[aria-label="Search pages"]')?.focus();
-          }, activeNav === "Search")}
-
-          {navItem("Shared with me", Users, () => {
-            setActiveNav("Shared with me");
-            setActiveWorkspace("All workspaces");
-            setSelectedPage(null);
-          }, activeNav === "Shared with me")}
-
-          {navItem("Inbox", Inbox, () => setShowInbox(!showInbox), false,
-            <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">3</span>
-          )}
-        </nav>
-
-        {showInbox && (
-          <div className="my-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3 text-xs text-slate-600">
-            <p className="font-semibold text-slate-800">Recent notifications</p>
-            <p className="mt-2">Sarah commented on Project Plan.</p>
-            <p className="mt-2">David shared Product Roadmap.</p>
-            <p className="mt-2">Lisa mentioned you in Meeting Notes.</p>
-          </div>
-        )}
-
-        <div className="mt-8">
-          <div className="mb-3 flex items-center justify-between px-3">
-            <p className="text-[10px] font-bold tracking-[0.16em] text-slate-400">
-              YOUR WORKSPACES
-            </p>
-            <button
-              title="Create workspace"
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600"
-              onClick={() => window.alert("Workspace creation will be connected to the API next.")}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-
-          <div className="space-y-1">
-            {workspaces.map((workspace) => (
-              <button
-                key={workspace.name}
-                onClick={() => {
-                  setActiveWorkspace(workspace.name);
-                  setActiveNav("Home");
-                  setSelectedPage(null);
-                }}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                  activeWorkspace === workspace.name
-                    ? "bg-violet-50 font-medium text-violet-700"
-                    : "text-slate-500 hover:bg-slate-50"
-                }`}
-              >
-                <span className={`grid size-7 place-items-center rounded-lg text-xs font-bold ${workspace.color}`}>
-                  {workspace.icon}
-                </span>
-                <span>{workspace.name}</span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => window.alert("Workspace creation will be connected to the API next.")}
-            className="mt-3 flex items-center gap-2 px-3 py-2 text-xs text-slate-400 transition hover:text-violet-600"
-          >
-            <Plus size={16} /> Create workspace
-          </button>
-        </div>
-
-        <div className="mt-auto border-t border-slate-100 pt-4">
-          {navItem("Settings", Settings, () => setActiveNav("Settings"), activeNav === "Settings")}
-
-          <button className="mt-3 flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-slate-50">
-            <span className="grid size-10 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
-              {userInitials}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">{userName}</span>
-              <span className="block truncate text-xs text-slate-400">{userEmail}</span>
-            </span>
-            <ChevronDown size={16} className="text-slate-400" />
-          </button>
-        </div>
-      </aside>
-
-      {/* Main dashboard */}
-      <main className="min-w-0 px-5 pb-12 sm:px-8 lg:px-10">
-        <header className="flex flex-col gap-4 border-b border-slate-200/80 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>Workspace</span>
-            <span>/</span>
-            <span className="font-semibold text-slate-700">
-              {selectedPage?.title || activeNav}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-400 sm:w-64 sm:flex-none">
-              <Search size={17} />
-              <input
-                aria-label="Search pages"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search pages..."
-                className="w-full min-w-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
-              />
-            </label>
-
-            <button
-              onClick={createPage}
-              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-semibold text-white shadow-md shadow-violet-200 transition hover:-translate-y-0.5 hover:bg-violet-700"
-            >
-              <Plus size={16} /> New page
-            </button>
-          </div>
-        </header>
-
-        {selectedPage ? (
-          <section className="mx-auto mt-10 max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-            <button
-              onClick={() => setSelectedPage(null)}
-              className="text-xs font-medium text-violet-600 hover:text-violet-800"
-            >
-              ← Back to dashboard
-            </button>
-
-            <div className="mt-8 flex items-center gap-4">
-              <span className={`grid size-12 place-items-center rounded-xl text-xl ${selectedPage.accent}`}>
-                {selectedPage.icon}
-              </span>
-              <input
-                value={selectedPage.title}
-                onChange={(event) => {
-                  const title = event.target.value;
-                  renamePage(selectedPage.id, title);
-                  setSelectedPage((current) => ({ ...current, title }));
-                }}
-                className="min-w-0 flex-1 border-0 text-2xl font-bold tracking-tight outline-none sm:text-3xl"
-                aria-label="Page title"
-              />
-            </div>
-
-            <p className="mt-3 text-xs text-slate-400">
-              {selectedPage.workspace} · Edited {selectedPage.edited}
-            </p>
-
-            <div className="mt-10 rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 px-5 py-16 text-center">
-              <Sparkles className="mx-auto text-violet-500" size={28} />
-              <h2 className="mt-4 text-lg font-semibold">Your document starts here</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                This is a placeholder for your TipTap editor. We'll add live collaborative editing next.
-              </p>
-            </div>
-          </section>
-        ) : (
-          <>
-            <section className="flex flex-col justify-between gap-5 py-9 sm:flex-row sm:items-end">
-              <div>
-                <span className="inline-flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-violet-600">
-                  <Sparkles size={14} /> YOUR CREATIVE WORKSPACE
-                </span>
-                <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-                  {greeting}, {userName} <span>👋</span>
-                </h1>
-                <p className="mt-2 text-sm text-slate-500">
-                  Here's what's happening in your workspace today.
-                </p>
-              </div>
-              <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-500">
-                <Clock3 size={15} /> Your workspace, in sync
-              </span>
-            </section>
-
-            {/* Stats */}
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {stats.map(({ label, value, note, icon: Icon, color }) => (
-                <article key={label} className="flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/20 transition hover:-translate-y-0.5 hover:shadow-md">
-                  <div className={`grid size-11 shrink-0 place-items-center rounded-xl ${color}`}>
-                    <Icon size={21} />
-                  </div>
-                  <div>
-                    <strong className="text-2xl font-extrabold tracking-tight text-slate-900">
-                      {label === "Total pages" ? pages.length : value}
-                    </strong>
-                    <p className="mt-1 text-xs font-semibold text-slate-600">{label}</p>
-                    <p className="mt-2 text-[10px] text-slate-400">{note}</p>
-                  </div>
-                </article>
-              ))}
-            </section>
-
-            {/* Recent pages */}
-            <section className="mt-10">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Recent pages</h2>
-                  <p className="mt-1 text-xs text-slate-400">Your team's work, all in one place.</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setActiveWorkspace("All workspaces");
-                    setActiveNav("Home");
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800"
-                >
-                  View all <ArrowUpRight size={15} />
-                </button>
-              </div>
-
-              <div className="mt-5 flex items-center gap-2 overflow-x-auto pb-2">
-                {["All workspaces", ...workspaces.map((workspace) => workspace.name)].map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setActiveWorkspace(name)}
-                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs transition ${
-                      activeWorkspace === name
-                        ? "bg-violet-100 font-semibold text-violet-700"
-                        : "text-slate-500 hover:bg-white"
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-
-              {filteredPages.length ? (
-                <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                  {filteredPages.map((page) => (
-                    <article
-                      key={page.id}
-                      onClick={() => setSelectedPage(page)}
-                      className="group min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 transition duration-200 hover:-translate-y-1 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-100/50"
-                    >
-                      <div className={`relative flex h-28 items-end bg-cover bg-center p-3 ${page.cover}`}>
-                        <span className={`grid size-9 place-items-center rounded-xl border-2 border-white bg-white text-base shadow-sm ${page.accent}`}>
-                          {page.icon}
-                        </span>
-                        <button
-                          aria-label={`Rename ${page.title}`}
-                          title="Rename page"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            const title = window.prompt("Rename page", page.title);
-                            if (title?.trim()) renamePage(page.id, title.trim());
-                          }}
-                          className="absolute right-3 top-3 rounded-lg border border-white/70 bg-white/90 p-1.5 text-slate-500 opacity-0 transition hover:text-violet-600 group-hover:opacity-100"
-                        >
-                          <MoreHorizontal size={17} />
-                        </button>
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="truncate text-sm font-bold text-slate-800">{page.title}</h3>
-                          <ArrowUpRight size={14} className="shrink-0 text-slate-300 transition group-hover:text-violet-600" />
-                        </div>
-
-                        <p className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
-                          <span className={`size-2 rounded-full ${page.accent.split(" ")[1].replace("bg-", "bg-")}`} />
-                          {page.workspace}
-                        </p>
-
-                        <p className="mt-2 text-[10px] text-slate-400">Edited {page.edited}</p>
-
-                        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                          <div className="flex -space-x-2">
-                            {page.members.map((member, index) => (
-                              <span
-                                key={`${member}-${index}`}
-                                className={`grid size-7 place-items-center rounded-full border-2 border-white text-[9px] font-bold ${
-                                  ["bg-violet-100 text-violet-700", "bg-emerald-100 text-emerald-700", "bg-pink-100 text-pink-700"][index % 3]
-                                }`}
-                              >
-                                {member}
-                              </span>
-                            ))}
-                          </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-                            <Users size={12} /> Shared
-                          </span>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-                  <Search className="mx-auto text-slate-400" size={26} />
-                  <h3 className="mt-3 font-semibold">No pages found</h3>
-                  <p className="mt-1 text-sm text-slate-500">Try a different search or create a new page.</p>
-                  <button onClick={createPage} className="mt-4 rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white">
-                    <Plus size={15} className="mr-1 inline" /> Create page
-                  </button>
-                </div>
-              )}
-            </section>
-
-            {/* Collaborators and tip */}
-            <section className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.25fr_1fr]">
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/20">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-bold text-slate-900">Active collaborators</h2>
-                    <p className="mt-1 text-xs text-slate-400">Who's working with you</p>
-                  </div>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700">
-                    ● Demo data
-                  </span>
-                </div>
-
-                <div className="mt-5 space-y-5">
-                  {people.map((person) => (
-                    <div key={person.name} className="flex items-center gap-3">
-                      <span className={`relative grid size-10 shrink-0 place-items-center rounded-full text-xs font-bold ${person.color}`}>
-                        {person.initials}
-                        <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-white bg-emerald-400" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-slate-800">{person.name}</p>
-                        <p className="mt-1 truncate text-[11px] text-slate-400">{person.task}</p>
-                      </div>
-                      <span className="text-[10px] text-emerald-600">Online</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-violet-100 bg-linear-to-br from-white via-violet-50/60 to-indigo-50 p-6">
-                <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-600">
-                  <Sparkles size={20} />
-                </span>
-                <h3 className="mt-4 text-lg font-bold tracking-tight text-slate-900">
-                  Good things happen together.
-                </h3>
-                <p className="mt-2 text-xs leading-6 text-slate-500">
-                  Invite teammates to collaborate on pages, share ideas, and keep every project moving forward.
-                </p>
-                <button
-                  onClick={() => window.alert("Team invitations will be implemented with the backend.")}
-                  className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-violet-600 hover:text-violet-800"
-                >
-                  Explore collaboration <ArrowUpRight size={15} />
-                </button>
-              </div>
-            </section>
-          </>
-        )}
-      </main>
-    </div>
-  );
+  return <>
+    <div className="editor-toolbar"><div className="toolbar-group"><button onClick={() => editor?.chain().focus().toggleBold().run()} className={editor?.isActive('bold') ? 'tool active' : 'tool'} aria-label="Bold">B</button><button onClick={() => editor?.chain().focus().toggleItalic().run()} className={editor?.isActive('italic') ? 'tool active italic' : 'tool italic'} aria-label="Italic">I</button><span className="tool-divider"/><button onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className="tool heading-tool">H1</button><button onClick={() => editor?.chain().focus().toggleBulletList().run()} className="tool" aria-label="Bullet list">☷</button><button onClick={() => editor?.chain().focus().toggleBlockquote().run()} className="tool" aria-label="Quote">“</button></div><span className="toolbar-hint">Changes save as you type</span></div>
+    <EditorContent editor={editor} />
+    <div className="editor-footer"><span className={connection === 'connected' ? 'live-status' : 'offline-status'}>{connection === 'connected' ? <><Wifi size={13}/> Live sync</> : <><WifiOff size={13}/> {connection === 'connecting' ? 'Connecting…' : 'Reconnecting…'}</>}</span><span>Yjs collaborative document</span></div>
+  </>;
 }
 
-export default Dashboard;
+export default function Dashboard({ onLogout }) {
+  const [user] = useState(() => { try { return typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null; } catch { return null; } });
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const [pages, setPages] = useState(() => { try { return typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('collab-pages') || 'null') || demoPages) : demoPages; } catch { return demoPages; } });
+  const [activeId, setActiveId] = useState(null), [query, setQuery] = useState(''), [workspace, setWorkspace] = useState('Design Studio'), [workspaceId, setWorkspaceId] = useState(null), [workspaces, setWorkspaces] = useState([]), [workspaceRole, setWorkspaceRole] = useState('owner'), [tab, setTab] = useState('document');
+  const [comments, setComments] = useState([]), [comment, setComment] = useState(''), [snapshots, setSnapshots] = useState([]), [presence, setPresence] = useState([]), [shareOpen, setShareOpen] = useState(false), [copied, setCopied] = useState(false), [permission, setPermission] = useState('edit'), [inviteEmail, setInviteEmail] = useState(''), [inviteStatus, setInviteStatus] = useState('');
+  const activePage = pages.find(p => p.id === activeId);
+  const activePageId = activePage?.id;
+  const filtered = useMemo(() => pages.filter(p => p.title.toLowerCase().includes(query.toLowerCase())), [pages, query]);
+  useEffect(() => { localStorage.setItem('collab-pages', JSON.stringify(pages)); }, [pages]);
+  useEffect(() => { if (!token) return; fetch(`${API}/api/workspaces`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : []).then(items => { const home = items[0]; setWorkspaces(items); if (!home) return; setWorkspace(home.name); setWorkspaceId(home.id); setWorkspaceRole(home.ownerId === user?.id ? 'owner' : home.memberships?.find(m => m.userId === user?.id)?.role || 'view'); setPages(home.pages.map(p => ({ id: p.id, title: p.title, workspace: home.name, updatedAt: 'Recently', content: p.title === 'Welcome to CollabSpace' ? demoPages[0].content : '<h1>' + p.title + '</h1><p>Start writing together…</p>' }))); }).catch(() => {}); }, [token, user?.id]);
+  useEffect(() => { if (!activePageId || !token) return; const headers = { Authorization: `Bearer ${token}` }; fetch(`${API}/api/pages/${activePageId}/comments`, { headers }).then(r => r.ok ? r.json() : []).then(setComments).catch(() => {}); fetch(`${API}/api/pages/${activePageId}/snapshots`, { headers }).then(r => r.ok ? r.json() : []).then(setSnapshots).catch(() => {}); }, [activePageId, token]);
+  const rename = (id, title) => setPages(prev => prev.map(p => p.id === id ? { ...p, title, updatedAt: 'Just now' } : p));
+  const persistTitle = async id => { const page = pages.find(p => p.id === id); if (token && page) fetch(`${API}/api/pages/${id}`, { method:'PATCH', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body:JSON.stringify({ title:page.title }) }).catch(() => {}); };
+  const createPage = async () => { if (token && !['owner','edit'].includes(workspaceRole)) { setInviteStatus('Edit access is required to create pages.'); setShareOpen(true); return; } const title = 'Untitled page'; let id = `page-${Date.now()}`; if (token && workspaceId) { try { const response = await fetch(`${API}/api/workspaces/${encodeURIComponent(workspace)}/pages`, { method: 'POST', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ title }) }); if (!response.ok) throw new Error('Unable to create page in this workspace.'); id = (await response.json()).id; } catch (error) { setInviteStatus(error.message); setShareOpen(true); return; } } const item = { id, title, workspace, updatedAt: 'Just now', content: '<h1>Untitled page</h1><p>Start writing together…</p>' }; setPages(prev => [item, ...prev]); setActiveId(id); };
+  const selectWorkspace = id => { const selected = workspaces.find(item => item.id === id); if (!selected) return; setWorkspace(selected.name); setWorkspaceId(selected.id); setWorkspaceRole(selected.ownerId === user?.id ? 'owner' : selected.memberships?.find(m => m.userId === user?.id)?.role || 'view'); setPages(selected.pages.map(p => ({ id:p.id, title:p.title, workspace:selected.name, updatedAt:'Recently', content:p.title === 'Welcome to CollabSpace' ? demoPages[0].content : `<h1>${p.title}</h1><p>Start writing together…</p>` }))); setActiveId(null); };
+  const createWorkspace = async () => { const name = window.prompt('Name your workspace'); if (!name?.trim()) return; try { const response = await fetch(`${API}/api/workspaces`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body:JSON.stringify({ name:name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Unable to create workspace.'); const next = { ...data, pages:[], memberships:[{ userId:user.id, role:'owner' }] }; setWorkspaces(prev => [...prev,next]); setWorkspace(next.name); setWorkspaceId(next.id); setWorkspaceRole('owner'); setPages([]); setActiveId(null); } catch (error) { setInviteStatus(error.message); setShareOpen(true); } };
+  const addComment = async e => { e.preventDefault(); if (!comment.trim()) return; const entry = { id: Date.now(), body: comment.trim(), author: user?.username || 'You', createdAt: new Date().toISOString() }; setComments(prev => [...prev, entry]); setComment(''); if (token) fetch(`${API}/api/pages/${activeId}/comments`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body:JSON.stringify({ body:entry.body }) }).catch(() => {}); };
+  const saveSnapshot = async () => { const item = { id:Date.now(), label:`Snapshot ${snapshots.length + 1}`, createdAt:new Date().toISOString(), author:user?.username || 'You' }; setSnapshots(prev => [item, ...prev]); if (token) fetch(`${API}/api/pages/${activeId}/snapshots`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body:JSON.stringify({ label:item.label }) }).catch(() => {}); };
+  const share = async () => { await navigator.clipboard?.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 1800); };
+  const invite = async e => { e.preventDefault(); setInviteStatus(''); if (!token || !workspaceId) { setInviteStatus('Sign in to invite a teammate.'); return; } try { const response = await fetch(`${API}/api/workspaces/${workspaceId}/members`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body:JSON.stringify({ email:inviteEmail, role:permission }) }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Unable to add teammate.'); setInviteStatus(`${data.membership.username} added with ${data.membership.role} access.`); setInviteEmail(''); } catch(error) { setInviteStatus(error.message); } };
+  return <div className="workspace-shell">
+    <aside className="workspace-sidebar">
+      <button className="brand-lockup" onClick={() => setActiveId(null)}><span className="brand-icon"><Command size={17}/></span><span>CollabSpace</span><ChevronDown size={14} className="brand-chevron"/></button>
+      <div className="workspace-switcher"><span className="workspace-mark">D</span>{workspaces.length > 1 ? <select aria-label="Switch workspace" value={workspaceId || ''} onChange={e => selectWorkspace(e.target.value)}>{workspaces.map(item => <option key={item.id} value={item.id}>{item.ownerId === user?.id ? item.name : `${item.name} · ${item.owner?.username || 'Shared'}`}</option>)}</select> : <span className="switcher-copy"><b>{workspace}</b><small>Free workspace</small></span>}<button className="workspace-add" onClick={createWorkspace} aria-label="Create workspace"><Plus size={14}/></button></div>
+      <div className="side-search"><Search size={14}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Quick find"/><kbd>⌘ K</kbd></div>
+      <div className="side-section-label">WORKSPACE <button onClick={createPage} aria-label="Create page"><Plus size={14}/></button></div>
+      <nav className="page-nav">{filtered.map(p => <button key={p.id} onClick={() => { setActiveId(p.id); setTab('document'); }} className={activeId === p.id ? 'page-nav-item selected' : 'page-nav-item'}><FileText size={15}/><span>{p.title}</span></button>)}<button className="page-nav-item muted" onClick={createPage}><Plus size={15}/>New page</button></nav>
+      <div className="side-bottom"><button className="side-link"><CircleHelp size={16}/> Help & support</button><button className="profile-card" onClick={onLogout}><span className="profile-avatar">{initial(user?.username || user?.name)}</span><span><b>{user?.username || user?.name || 'Guest user'}</b><small>{user?.email || 'Free plan'}</small></span><MoreHorizontal size={17}/></button></div>
+    </aside>
+    <main className="workspace-main">
+      <header className="workspace-topbar"><div className="breadcrumbs"><span>{workspace}</span><span className="crumb-slash">/</span><span className="current-crumb">{activePage?.title || 'Home'}</span></div><div className="top-actions"><div className="avatar-stack" title={`${presence.length} collaborators online`}>{presence.slice(0,3).map(person => <span key={person.name} className="collab-avatar" style={{ backgroundColor: person.color || '#7357e8' }}>{initial(person.name)}</span>)}</div><span className="online-count"><i/> {presence.length} online</span><button className="share-button" onClick={() => setShareOpen(true)}><Share2 size={14}/> Share</button><button className="icon-button" aria-label="Settings"><Settings2 size={17}/></button></div></header>
+      {activePage ? <div className="document-layout"><div className="document-main"><div className="document-heading"><div className="page-icon">✳</div><input className="document-title" aria-label="Page title" value={activePage.title} readOnly={!['owner','edit'].includes(workspaceRole)} onChange={e => rename(activePage.id, e.target.value)} onBlur={() => persistTitle(activePage.id)}/><button className="icon-button"><MoreHorizontal size={19}/></button></div><div className="document-meta"><span>Edited just now</span><span className="meta-dot">·</span><span>{workspaceRole === 'owner' ? 'Workspace owner' : `Can ${workspaceRole}`}</span></div><div className="doc-tabs"><button onClick={() => setTab('document')} className={tab === 'document' ? 'doc-tab active' : 'doc-tab'}>Document</button><button onClick={() => setTab('comments')} className={tab === 'comments' ? 'doc-tab active' : 'doc-tab'}>Comments <span className="tab-count">{comments.length}</span></button><button onClick={() => setTab('history')} className={tab === 'history' ? 'doc-tab active' : 'doc-tab'}>History</button></div>{tab === 'document' ? <section className="paper"><CollaborativeEditor page={activePage} user={user} token={token} onPresence={setPresence} editable={['owner','edit'].includes(workspaceRole)}/></section> : tab === 'comments' ? <section className="side-panel inline-panel"><h2>Comments</h2><p className="panel-description">Discuss this page with your team.</p><div className="comments-list">{comments.length ? comments.map(c => <article className="comment-card" key={c.id}><span className="comment-avatar">{initial(c.author || 'Teammate')}</span><div><b>{c.author || 'Teammate'}</b><small>{new Date(c.createdAt).toLocaleString()}</small><p>{c.body}</p></div></article>) : <div className="empty-state"><MessageCircle size={22}/><b>Start a conversation</b><span>Leave the first comment on this page.</span></div>}</div>{['owner','edit','comment'].includes(workspaceRole) && <form className="comment-form" onSubmit={addComment}><textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Write a comment…"/><button type="submit" disabled={!comment.trim()}>Comment</button></form>}</section> : <section className="side-panel inline-panel"><div className="history-heading"><div><h2>Version history</h2><p className="panel-description">Save and revisit important milestones.</p></div>{['owner','edit'].includes(workspaceRole) && <button className="primary-small" onClick={saveSnapshot}><History size={14}/> Save snapshot</button>}</div>{snapshots.length ? snapshots.map(s => <article className="snapshot-row" key={s.id}><span className="snapshot-icon"><Clock3 size={16}/></span><div><b>{s.label}</b><small>{s.author} · {new Date(s.createdAt).toLocaleString()}</small></div></article>) : <div className="empty-state"><History size={22}/><b>No snapshots yet</b><span>Create a named checkpoint for this document.</span>{['owner','edit'].includes(workspaceRole) && <button className="primary-small" onClick={saveSnapshot}>Save first snapshot</button>}</div>}</section>}<div className="document-footnote"><Shield size={14}/> Your changes are encrypted in transit and synced as you type.</div></div><aside className="right-sidebar"><section className="right-card"><div className="right-card-title"><span>LIVE COLLABORATION</span><Activity size={15}/></div><div className="live-indicator"><i/><b>{presence.length} {presence.length === 1 ? 'teammate' : 'teammates'} here</b></div><p>Changes from everyone appear instantly in this document.</p>{presence.map((person,index) => <div className="teammate-row" key={`${person.name}-${index}`}><span className="collab-avatar" style={{ backgroundColor: person.color || '#7357e8' }}>{initial(person.name)}</span><span><b>{person.name}</b><small>Online now</small></span><i className="presence-dot"/></div>)}</section><section className="right-card"><div className="right-card-title"><span>PAGE ACCESS</span><Shield size={15}/></div><div className="permission-label">Your role<select value={workspaceRole} disabled><option value="owner">Workspace owner</option><option value="edit">Can edit</option><option value="comment">Can comment</option><option value="view">Can view</option></select></div><p>Workspace owner controls member roles when inviting teammates.</p></section><section className="hint-card"><span className="hint-sparkle"><Sparkles size={15}/></span><b>Made for momentum</b><p>One shared space for ideas, decisions, and work in progress.</p></section></aside></div> : <section className="home-view"><span className="eyebrow"><Sparkles size={14}/> YOUR TEAM WORKSPACE</span><h1>Good work happens <span>together.</span></h1><p>Pick up where your team left off.</p><div className="home-toolbar"><h2>Recent pages <span>{pages.length}</span></h2><button className="share-button" onClick={createPage}><FilePlus2 size={15}/> New page</button></div><div className="page-grid">{pages.map((p,i) => <button className="page-card" key={p.id} onClick={() => setActiveId(p.id)}><div className={`card-cover cover-${i % 3}`}><FileText size={19}/><span>{p.workspace}</span></div><div className="card-info"><b>{p.title}</b><small>Edited {p.updatedAt}</small><div className="card-members"><span className="collab-avatar avatar-two">MK</span><span className="collab-avatar avatar-three">AL</span><span>Shared with your team</span></div></div></button>)}</div><div className="project-brief"><div className="brief-icon"><Sparkles size={19}/></div><div><b>Built for real-time teamwork</b><p>Concurrent edits merge automatically, teammates stay visible, and every important decision has a place.</p></div><span className="brief-tag">YJS POWERED</span></div></section>}
+      <footer className="app-footer"><span><span className="footer-mark">✳</span> CollabSpace</span><span>Real-time collaboration, made simple</span><span>Project demo · Full-stack collaboration</span></footer>
+    </main>
+    {shareOpen && <div className="modal-backdrop" onClick={() => setShareOpen(false)}><section className="share-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShareOpen(false)} aria-label="Close"><X size={18}/></button><div className="modal-icon"><Share2 size={18}/></div><h2>Share this workspace</h2><p>Add a registered teammate with a workspace role.</p><form onSubmit={invite}><label className="invite-label">Invite by email<div><input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="teammate@company.com" required/><button>Invite</button></div></label></form>{inviteStatus && <p className="invite-status" role="status">{inviteStatus}</p>}<label className="invite-label">Workspace link<div><input readOnly value={window.location.href}/><button type="button" onClick={share}>{copied ? <Check size={15}/> : 'Copy'}</button></div></label><div className="modal-permission"><span>Invitee access</span><select value={permission} onChange={e => setPermission(e.target.value)}><option value="edit">Can edit</option><option value="comment">Can comment</option><option value="view">Can view</option></select></div><div className="modal-note"><Shield size={14}/> Only the workspace owner can add members.</div></section></div>}
+  </div>;
+}

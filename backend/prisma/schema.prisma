@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int              @id @default(autoincrement())
+  username     String           @unique
+  email        String           @unique
+  passwordHash String
+  memberships  Membership[]
+  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+  comments     Comment[]
+  snapshots    Snapshot[]
+  createdAt    DateTime         @default(now())
+}
+
+model Workspace {
+  id          String       @id @default(cuid())
+  name        String
+  ownerId     Int
+  owner       User         @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  memberships Membership[]
+  pages       Page[]
+  createdAt   DateTime     @default(now())
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  userId      Int
+  workspaceId String
+  role        String    @default("edit")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@unique([userId, workspaceId])
+}
+
+model Page {
+  id          String     @id @default(cuid())
+  title       String     @default("Untitled page")
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  snapshots   Snapshot[]
+  yDocument   YDocument?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  pageId    String
+  authorId  Int
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  label     String
+  state     Bytes?
+  pageId    String
+  authorId  Int
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model YDocument {
+  pageId    String   @id
+  state     Bytes
+  updatedAt DateTime @updatedAt
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+}

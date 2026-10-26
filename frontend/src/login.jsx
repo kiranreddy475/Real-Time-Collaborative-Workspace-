@@ -16,12 +16,12 @@ function Login({ onLogin, onShowRegister }) {
       setLoading(true);
 
       const response = await axios.post(
-        "http://localhost:3000/login",
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/login`,
         { username, password }
       );
 
       if (response.data.success) {
-        onLogin();
+        onLogin(response.data);
       } else {
         setError(
           response.data.message || "Invalid username or password"

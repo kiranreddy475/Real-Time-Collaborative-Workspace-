@@ -1,10 +1,16 @@
 {
-  "name": "frontend",
+  "name": "collabspace",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "api": "npm run dev --prefix backend",
+    "realtime": "npm run realtime --prefix backend",
+    "db:migrate": "npm run prisma:deploy --prefix backend",
+    "db:generate": "npm run prisma:generate --prefix backend"
   },
   "keywords": [],
   "author": "",
