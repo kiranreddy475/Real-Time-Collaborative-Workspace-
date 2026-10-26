@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import axios from "axios";
 
@@ -17,20 +16,17 @@ function Login({ onLogin, onShowRegister }) {
 
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/login`,
-        { username, password }
+        { username, password },
       );
 
       if (response.data.success) {
         onLogin(response.data);
       } else {
-        setError(
-          response.data.message || "Invalid username or password"
-        );
+        setError(response.data.message || "Invalid username or password");
       }
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to connect. Please try again."
+        err.response?.data?.message || "Unable to connect. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -40,19 +36,14 @@ function Login({ onLogin, onShowRegister }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b1020] px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111a30] p-7 shadow-2xl shadow-black/30 sm:p-10">
-
         {/* Logo */}
         <div className="mb-9 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
             <span className="text-xl font-bold">C</span>
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">
-              CollabSpace
-            </h2>
-            <p className="text-xs text-slate-400">
-              Work better, together.
-            </p>
+            <h2 className="text-lg font-bold text-white">CollabSpace</h2>
+            <p className="text-xs text-slate-400">Work better, together.</p>
           </div>
         </div>
 

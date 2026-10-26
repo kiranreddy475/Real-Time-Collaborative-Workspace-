@@ -62,7 +62,3 @@ Local checks completed: Next.js production build, ESLint, Prisma client generati
 - The workspace owner can add an existing registered account from Share and choose view, comment, or edit access. Pending invitations by email and a dedicated member-management screen are not implemented.
 - Snapshots capture a binary Yjs state. A version browser/restore workflow is not implemented; CRDT state restoration requires a designed branching or replacement strategy.
 - No load-test numbers are fabricated. The test plan records measured results when run.
-
-## Project brief
-
-Full-stack development · batch starts 20 October 2026 · deadline 20 November 2026 · estimated effort 14 days.

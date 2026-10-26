@@ -1,4 +1,3 @@
-
 const jwt = require("jsonwebtoken");
 
 function authenticateToken(req, res, next) {
@@ -7,7 +6,7 @@ function authenticateToken(req, res, next) {
   // Check whether the token was provided
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
-      message: "Access denied. Token is required."
+      message: "Access denied. Token is required.",
     });
   }
 
@@ -23,7 +22,7 @@ function authenticateToken(req, res, next) {
     next();
   } catch (error) {
     return res.status(403).json({
-      message: "Invalid or expired token."
+      message: "Invalid or expired token.",
     });
   }
 }

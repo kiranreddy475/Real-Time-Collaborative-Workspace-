@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import axios from "axios";
 
@@ -22,20 +21,17 @@ function Register({ onRegister }) {
           username,
           email,
           password,
-        }
+        },
       );
 
       if (response.data.success) {
         onRegister(response.data);
       } else {
-        setError(
-          response.data.message || "Registration failed"
-        );
+        setError(response.data.message || "Registration failed");
       }
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to register. Please try again."
+        err.response?.data?.message || "Unable to register. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -45,19 +41,14 @@ function Register({ onRegister }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b1020] px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111a30] p-7 shadow-2xl shadow-black/30 sm:p-10">
-
         {/* Logo */}
         <div className="mb-7 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500 text-xl font-bold text-white shadow-lg shadow-indigo-500/20">
             C
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">
-              CollabSpace
-            </h2>
-            <p className="text-xs text-slate-400">
-              Work better, together.
-            </p>
+            <h2 className="text-lg font-bold text-white">CollabSpace</h2>
+            <p className="text-xs text-slate-400">Work better, together.</p>
           </div>
         </div>
 

@@ -4,16 +4,18 @@ import { useState } from "react";
 
 import Login from "./login";
 import Register from "./register";
-import Dashboard from "./Dashboard"
+import Dashboard from "./Dashboard";
 
 function App() {
-
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem("token")));
+  const [isLoggedIn, setIsLoggedIn] = useState(() =>
+    Boolean(localStorage.getItem("token")),
+  );
   const [showRegister, setShowRegister] = useState(false);
   // Login successful
   function handleLogin(session) {
     if (session?.token) localStorage.setItem("token", session.token);
-    if (session?.user) localStorage.setItem("user", JSON.stringify(session.user));
+    if (session?.user)
+      localStorage.setItem("user", JSON.stringify(session.user));
     setIsLoggedIn(true);
   }
 
@@ -25,7 +27,8 @@ function App() {
   // Registration successful
   function handleRegister(session) {
     if (session?.token) localStorage.setItem("token", session.token);
-    if (session?.user) localStorage.setItem("user", JSON.stringify(session.user));
+    if (session?.user)
+      localStorage.setItem("user", JSON.stringify(session.user));
     setShowRegister(false);
     if (session?.token) setIsLoggedIn(true);
   }
@@ -34,27 +37,22 @@ function App() {
   if (isLoggedIn) {
     return (
       <Dashboard
-        onLogout={() => { localStorage.removeItem("token"); localStorage.removeItem("user"); setIsLoggedIn(false); }}
+        onLogout={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setIsLoggedIn(false);
+        }}
       />
     );
   }
 
   // If user clicked Register → show Register page
   if (showRegister) {
-    return (
-      <Register
-        onRegister={handleRegister}
-      />
-    );
+    return <Register onRegister={handleRegister} />;
   }
 
   // Otherwise → show Login page
-  return (
-    <Login
-      onLogin={handleLogin}
-      onShowRegister={handleShowRegister}
-    />
-  );
+  return <Login onLogin={handleLogin} onShowRegister={handleShowRegister} />;
 }
 
 export default App;
