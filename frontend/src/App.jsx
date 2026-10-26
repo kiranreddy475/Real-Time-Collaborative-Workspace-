@@ -10,7 +10,7 @@ function App() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-
+  const [userName,setUsername]=useState("");
   // Login successful
   function handleLogin() {
     setIsLoggedIn(true);

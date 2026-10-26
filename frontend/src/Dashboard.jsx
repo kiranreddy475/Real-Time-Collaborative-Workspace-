@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Home,
   Search,
@@ -81,6 +81,47 @@ const stats = [
 ];
 
 function Dashboard() {
+  // Read the user saved by your login flow.
+  // Expected shape: { name, username, email } in localStorage under "user".
+  const [loggedInUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  const userName =
+    loggedInUser?.name ||
+    loggedInUser?.username ||
+    loggedInUser?.fullName ||
+    "User";
+  const userEmail = loggedInUser?.email || "";
+  const userInitials = userName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "U";
+
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  // Update the greeting while the dashboard remains open.
+  useEffect(() => {
+    const timerId = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  const hour = currentTime.getHours();
+  const greeting =
+    hour >= 4 && hour < 12
+      ? "Good morning"
+      : hour >= 12 && hour < 16
+        ? "Good afternoon"
+        : hour >= 16 && hour < 22
+          ? "Good evening"
+          : "Night alert";
+
   const [pages, setPages] = useState(initialPages);
   const [query, setQuery] = useState("");
   const [activeNav, setActiveNav] = useState("Home");
@@ -247,11 +288,11 @@ function Dashboard() {
 
           <button className="mt-3 flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-slate-50">
             <span className="grid size-10 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
-              AC
+              {userInitials}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">Alex Chen</span>
-              <span className="block truncate text-xs text-slate-400">alex@example.com</span>
+              <span className="block text-sm font-semibold">{userName}</span>
+              <span className="block truncate text-xs text-slate-400">{userEmail}</span>
             </span>
             <ChevronDown size={16} className="text-slate-400" />
           </button>
@@ -335,7 +376,7 @@ function Dashboard() {
                   <Sparkles size={14} /> YOUR CREATIVE WORKSPACE
                 </span>
                 <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-                  Good morning, Alex <span>👋</span>
+                  {greeting}, {userName} <span>👋</span>
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
                   Here's what's happening in your workspace today.
